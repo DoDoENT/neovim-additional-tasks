@@ -267,7 +267,7 @@ require('tasks').setup({
 })
 ```
 
-NPM task module will create `install` task subcommand and for each `npm run <script>` it will create `run-<script>` subcommand. `run-<script>` subcommands are automatically discovered from your `package.json` file.
+NPM task module will create `install` and `run` task subcommands.
 
 ### NPM Example
 
@@ -284,13 +284,13 @@ For example, imagine that your `package.json` contains lines like these:
 }
 ```
 
-NPM task plugin will generate following subcommands: `install`, `run-clean`, `run-lint`, `run-start`, and `run-rollup`. You can map then those commands with code like this:
+You can map then those commands with code like this:
 
 ```lua
 vim.keymap.set( "n", "<leader>ni", [[:Task start npm install<cr>]] )
-vim.keymap.set( "n", "<leader>nl", [[:Task start npm run-lint<cr>]] )
-vim.keymap.set( "n", "<leader>nr", [[:Task start npm run-rollup<cr>]] )
-vim.keymap.set( "n", "<leader>ns", [[:Task start npm run-clean<cr>]] )
-vim.keymap.set( "n", "<leader>ns", [[:Task start npm run-start<cr>]] )
+vim.keymap.set( "n", "<leader>nl", [[:Task start npm run lint<cr>]] )
+vim.keymap.set( "n", "<leader>nr", [[:Task start npm run rollup<cr>]] )
+vim.keymap.set( "n", "<leader>ns", [[:Task start npm run clean<cr>]] )
+vim.keymap.set( "n", "<leader>ns", [[:Task start npm run start<cr>]] )
 ```
 
