@@ -6,7 +6,7 @@ This plugin contains dditional tasks for [Shatur/neovim-tasks](https://github.co
 - `npm` for managing NPM projects
 - `cmake_kits` for advanced management of CMake-based projects, which has a lot more features than the `cmake` task provided in the original [Shatur/neovim-tasks](https://github.com/Shatur/neovim-tasks) plugin, such as support for build kits, customization of build types, integration with ctest, automatic reconfiguration of `clangd` LSP arguments, ...
 
-Additinally, plugin also provides a lot of utility functions for CMake, available [here](https://github.com/DoDoENT/neovim-additional-tasks/blob/master/lua/tasks/cmake_kits_utils.lua), which can be used to expose some CMake state which is useful for configuring other plugins, for example CMake status bar with [nvim-lualine/lualine.nvim](https://github.com/nvim-lualine/lualine.nvim).
+Additinally, plugin also provides a lot of utility functions for CMake, available [here](https://github.com/DoDoENT/neovim-additional-tasks/blob/master/lua/tasks/cmake_kits_utils.lua), which can be used to expose some CMake state, which is useful for configuring other plugins, for example CMake status bar with [nvim-lualine/lualine.nvim](https://github.com/nvim-lualine/lualine.nvim).
 
 # Installation
 
@@ -90,7 +90,7 @@ The structure of the JSON is in the form:
 }
 ```
 
-This allows for custom cmake user arguments for each build type that will always be applied, regardless of currently selected CMake kit.
+This allows for custom cmake user arguments for each build type that will always be applied, regardless of selected CMake kit.
 
 ### Cmake build kits
 
@@ -176,15 +176,16 @@ The structure of the JSON is in the form:
 
 CMake with Kits task module will generate following tasks:
 
-- `configure` - invokes cmake with parameters for currently active `build_kit` and `build_type`
-- `build` - builds the currenly selected target
-- `build_all` - builds all targets
-- `run` - builds and then runs the currently selected target
-- `debug` - builds and then starts `npm-dap` debug session for the currently selected target
-- `clean` - cleans the build directory
-- `ctest` - invokes `ctest`
-- `purge` - deletes the cmake binary directory (unix only)
-- `reconfigure` - equivalent to `purge` + `configure`
+- `configure` — invokes cmake with parameters for active `build_kit` and `build_type`
+- `build` — builds the currenly selected target
+- `build_all` — builds all targets
+- `build_current_file` — builds target associated with now opened source file (Ninja generator only)
+- `run` — builds and then runs the selected target
+- `debug` — builds and then starts `npm-dap` debug session for the selected target
+- `clean` — cleans the build directory
+- `ctest` — invokes `ctest`
+- `purge` — deletes the cmake binary directory (unix only)
+- `reconfigure` — equivalent to `purge` + `configure`
 
 
 ### CMake with Kits example
@@ -211,7 +212,7 @@ vim.keymap.set( "n", "<leader>cB", [[:Task start cmake_kits build_all<cr>]], { s
 
 #### Correct LSP `clangd` config on NeoVim startup
 
-In order to correctly boot the `clangd` LSP on NeoVim startup, you can configure LSP to immediately use correct `clangd` arguments with following code:
+To correctly boot the `clangd` LSP on NeoVim startup, you can configure LSP to immediately use correct `clangd` arguments with following code:
 
 ```lua
 require( 'lspconfig' )[ 'clangd' ].setup({

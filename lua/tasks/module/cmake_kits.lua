@@ -157,6 +157,41 @@ local function build_all( module_config, _ )
     }
 end
 
+local function build_current_file( module_config, _ )
+    local build_dir = cmake_utils.getBuildDirFromConfig( module_config )
+    local cmakeKits = cmake_utils.getCMakeKitsFromConfig( module_config )
+
+    local sourceName = vim.fn.expand( '%' )
+    local extension  = vim.fn.fnamemodify( sourceName, ':e' )
+
+    local headerExtensions = {
+        [ 'h' ] = true,
+        [ 'hxx' ] = true,
+        [ 'hpp' ] = true,
+    }
+
+    if #extension == 0 or headerExtensions[ extension ] then
+        vim.notify( 'Given file is not a source file!', vim.log.levels.ERROR, { title = 'cmake_kits' } )
+        return nil
+    end
+
+    local build_kit_config  = cmakeKits[ module_config.build_kit ]
+    local generator = build_kit_config.generator and build_kit_config.generator or "Ninja"
+
+    if generator ~= "Ninja" then
+        vim.notify( 'Build current file is supported only for Ninja generator at the moment!', vim.log.levels.ERROR, { title = 'cmake_kits' } )
+        return nil
+    end
+
+    local ninjaTarget = vim.fn.fnameescape( vim.fn.fnamemodify( sourceName, ':p' ) .. '^' )
+    return {
+        cmd = module_config.cmd,
+        args = { '--build', build_dir.filename, '--target', ninjaTarget },
+        env = cmakeKits[ module_config.build_kit ].environment_variables,
+        after_success = reconfigure_clangd,
+    }
+end
+
 local function clean( module_config, _ )
     local build_dir = cmake_utils.getBuildDirFromConfig( module_config )
     local cmakeKits = cmake_utils.getCMakeKitsFromConfig( module_config )
@@ -243,6 +278,7 @@ return {
         configure = configure,
         build = build,
         build_all = build_all,
+        build_current_file = build_current_file,
         run = { build, run },
         debug = { build, debug },
         clean = clean,
