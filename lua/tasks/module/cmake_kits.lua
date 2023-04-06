@@ -123,7 +123,7 @@ local function configure( module_config, _ )
     return {
         cmd = module_config.cmd,
         args = args,
-        env = build_type_config.environment_variables,
+        env = cmakeKits[ module_config.build_kit ].environment_variables,
         after_success = reconfigure_clangd,
     }
 end
