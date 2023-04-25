@@ -154,6 +154,16 @@ local function currentClangdArgs()
     return clangdArgs
 end
 
+-- update query driver clangd flag and restart LSP
+local function reconfigureClangd()
+    local clangdArgs = currentClangdArgs()
+    require( 'lspconfig' )[ 'clangd' ].setup({
+        cmd = clangdArgs,
+    })
+    vim.api.nvim_command( 'LspRestart clangd' )
+end
+
+
 return {
     getBuildDir = getBuildDir,
     getBuildDirFromConfig = getBuildDirFromConfig,
@@ -167,4 +177,5 @@ return {
     getCMakeBuildTypes = getCMakeBuildTypes,
     getCMakeBuildTypesFromConfig = getCMakeBuildTypesFromConfig,
     currentClangdArgs = currentClangdArgs,
+    reconfigureClangd = reconfigureClangd,
 }

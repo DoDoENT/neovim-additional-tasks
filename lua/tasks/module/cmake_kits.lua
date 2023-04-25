@@ -41,15 +41,6 @@ local function getTargetNames()
     return targets
 end--
 
--- update query driver clangd flag and restart LSP
-local function reconfigure_clangd()
-    local clangdArgs = cmake_utils.currentClangdArgs()
-    require( 'lspconfig' )[ 'clangd' ].setup({
-        cmd = clangdArgs,
-    })
-    vim.api.nvim_command( 'LspRestart clangd' )
-end
-
 local function makeQueryFiles( build_dir )
     local query_dir = build_dir / '.cmake' / 'api' / 'v1' / 'query'
     if not query_dir:mkdir( { parents = true } ) then
@@ -124,7 +115,7 @@ local function configure( module_config, _ )
         cmd = module_config.cmd,
         args = args,
         env = cmakeKits[ module_config.build_kit ].environment_variables,
-        after_success = reconfigure_clangd,
+        after_success = cmake_utils.reconfigureClangd,
     }
 end
 
@@ -141,7 +132,6 @@ local function build( module_config, _ )
         cmd = module_config.cmd,
         args = args,
         env = cmakeKits[ module_config.build_kit ].environment_variables,
-        after_success = reconfigure_clangd,
     }
 end
 
@@ -153,7 +143,6 @@ local function build_all( module_config, _ )
         cmd = module_config.cmd,
         args = { '--build', build_dir.filename },
         env = cmakeKits[ module_config.build_kit ].environment_variables,
-        after_success = reconfigure_clangd,
     }
 end
 
@@ -188,7 +177,6 @@ local function build_current_file( module_config, _ )
         cmd = module_config.cmd,
         args = { '--build', build_dir.filename, '--target', ninjaTarget },
         env = cmakeKits[ module_config.build_kit ].environment_variables,
-        after_success = reconfigure_clangd,
     }
 end
 
@@ -200,7 +188,6 @@ local function clean( module_config, _ )
         cmd = module_config.cmd,
         args = { '--build', build_dir.filename, '--target', 'clean' },
         env = cmakeKits[ module_config.build_kit ].environment_variables,
-        after_success = reconfigure_clangd,
     }
 end
 
