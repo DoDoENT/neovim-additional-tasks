@@ -1,6 +1,7 @@
 local Path = require( 'plenary.path' )
 local utils = require( 'tasks.utils' )
 local cmake_utils = require( 'tasks.cmake_kits_utils' )
+local cmake_presets = require( 'tasks.cmake_presets' )
 
 -- based on https://github.com/Shatur/neovim-tasks/blob/master/lua/tasks/module/cmake.lua
 -- but implemented with support for cmake kits
@@ -61,6 +62,13 @@ end
 -- inspired by https://github.com/Shatur/neovim-tasks/blob/master/lua/tasks/module/cmake.lua#L130
 -- but modified to also support build kits
 local function configure( module_config, _ )
+    local usePresets = cmake_utils.shouldUsePresets( module_config )
+
+    if usePresets and not module_config.configure_preset then
+        utils.notify( 'No selected configure preset, please select it', vim.log.levels.ERROR )
+        return nil
+    end
+
     local build_dir = cmake_utils.getBuildDir()
     build_dir:mkdir({ parents = true })
 
@@ -68,87 +76,133 @@ local function configure( module_config, _ )
         return nil
     end
 
-    local buildTypes = cmake_utils.getCMakeBuildTypesFromConfig( module_config )
-    local cmakeKits = cmake_utils.getCMakeKitsFromConfig( module_config )
-    local build_type_config = buildTypes[ module_config.build_type ]
-    local build_kit_config  = cmakeKits[ module_config.build_kit ]
+    if usePresets then
+        local currentPreset = module_config.configure_preset
 
-    local cmakeBuildType = build_type_config.build_type
+        local args = { '--preset', currentPreset, '-DCMAKE_EXPORT_COMPILE_COMMANDS=ON' }
 
-    local generator = build_kit_config.generator and build_kit_config.generator or "Ninja"
-    local buildTypeAware = true
-    if build_kit_config.build_type_aware ~= nil then
-        buildTypeAware = build_kit_config.build_type_aware
-    end
+        return {
+            cmd = module_config.cmd,
+            args = args,
+            after_success = cmake_utils.reconfigureClangd,
+        }
+    else
+        local buildTypes = cmake_utils.getCMakeBuildTypesFromConfig( module_config )
+        local cmakeKits = cmake_utils.getCMakeKitsFromConfig( module_config )
+        local build_type_config = buildTypes[ module_config.build_type ]
+        local build_kit_config  = cmakeKits[ module_config.build_kit ]
 
-    local args = { '-G', generator, '-B', build_dir.filename, '-DCMAKE_EXPORT_COMPILE_COMMANDS=ON' }
-    if buildTypeAware then
-        table.insert( args, '-DCMAKE_BUILD_TYPE=' .. cmakeBuildType )
-    end
-    if module_config.source_dir then
-        table.insert( args, '-S' )
-        table.insert( args, module_config.source_dir )
-    end
+        local cmakeBuildType = build_type_config.build_type
 
-    if build_kit_config.toolchain_file then
-        table.insert( args, '-DCMAKE_TOOLCHAIN_FILE=' .. build_kit_config.toolchain_file )
-    end
-
-    if build_kit_config.compilers then
-        table.insert( args, '-DCMAKE_C_COMPILER=' .. build_kit_config.compilers.C )
-        table.insert( args, '-DCMAKE_CXX_COMPILER=' .. build_kit_config.compilers.CXX )
-    end
-
-    if build_type_config.cmake_usr_args then
-        for k, v in pairs( build_type_config.cmake_usr_args ) do
-            table.insert( args, '-D' .. k .. '=' .. v )
+        local generator = build_kit_config.generator and build_kit_config.generator or "Ninja"
+        local buildTypeAware = true
+        if build_kit_config.build_type_aware ~= nil then
+            buildTypeAware = build_kit_config.build_type_aware
         end
-    end
 
-    if build_kit_config.cmake_usr_args then
-        for k, v in pairs( build_kit_config.cmake_usr_args ) do
-            table.insert( args, '-D' .. k .. '=' .. v )
+        local args = { '-G', generator, '-B', build_dir.filename, '-DCMAKE_EXPORT_COMPILE_COMMANDS=ON' }
+        if buildTypeAware then
+            table.insert( args, '-DCMAKE_BUILD_TYPE=' .. cmakeBuildType )
         end
-    end
+        if module_config.source_dir then
+            table.insert( args, '-S' )
+            table.insert( args, module_config.source_dir )
+        end
 
-    return {
-        cmd = module_config.cmd,
-        args = args,
-        env = cmakeKits[ module_config.build_kit ].environment_variables,
-        after_success = cmake_utils.reconfigureClangd,
-    }
+        if build_kit_config.toolchain_file then
+            table.insert( args, '-DCMAKE_TOOLCHAIN_FILE=' .. build_kit_config.toolchain_file )
+        end
+
+        if build_kit_config.compilers then
+            table.insert( args, '-DCMAKE_C_COMPILER=' .. build_kit_config.compilers.C )
+            table.insert( args, '-DCMAKE_CXX_COMPILER=' .. build_kit_config.compilers.CXX )
+        end
+
+        if build_type_config.cmake_usr_args then
+            for k, v in pairs( build_type_config.cmake_usr_args ) do
+                table.insert( args, '-D' .. k .. '=' .. v )
+            end
+        end
+
+        if build_kit_config.cmake_usr_args then
+            for k, v in pairs( build_kit_config.cmake_usr_args ) do
+                table.insert( args, '-D' .. k .. '=' .. v )
+            end
+        end
+
+        return {
+            cmd = module_config.cmd,
+            args = args,
+            env = cmakeKits[ module_config.build_kit ].environment_variables,
+            after_success = cmake_utils.reconfigureClangd,
+        }
+    end
 end
 
 local function build( module_config, _ )
-    local build_dir = cmake_utils.getBuildDirFromConfig( module_config )
-    local cmakeKits = cmake_utils.getCMakeKitsFromConfig( module_config )
+    local usePresets = cmake_utils.shouldUsePresets( module_config )
 
-    local args = { '--build', build_dir.filename }
-    if module_config.target and module_config.target ~= 'all' then
-        vim.list_extend(args, { '--target', module_config.target })
+    if usePresets and not module_config.build_preset then
+        utils.notify( 'No selected build preset, please select it', vim.log.levels.ERROR )
+        return nil
     end
 
-    return {
-        cmd = module_config.cmd,
-        args = args,
-        env = cmakeKits[ module_config.build_kit ].environment_variables,
-    }
+    if usePresets then
+        local buildPreset = module_config.build_preset
+
+        local args = { '--build', '--preset', buildPreset }
+
+        if module_config.target and module_config.target ~= 'all' then
+            vim.list_extend(args, { '--target', module_config.target })
+        end
+
+        return {
+            cmd = module_config.cmd,
+            args = args
+        }
+    else
+        local build_dir = cmake_utils.getBuildDirFromConfig( module_config )
+        local cmakeKits = cmake_utils.getCMakeKitsFromConfig( module_config )
+
+        local args = { '--build', build_dir.filename }
+        if module_config.target and module_config.target ~= 'all' then
+            vim.list_extend(args, { '--target', module_config.target })
+        end
+
+        return {
+            cmd = module_config.cmd,
+            args = args,
+            env = cmakeKits[ module_config.build_kit ].environment_variables,
+        }
+    end
 end
 
 local function build_all( module_config, _ )
-    local build_dir = cmake_utils.getBuildDirFromConfig( module_config )
-    local cmakeKits = cmake_utils.getCMakeKitsFromConfig( module_config )
+    local usePresets = cmake_utils.shouldUsePresets( module_config )
 
-    return {
-        cmd = module_config.cmd,
-        args = { '--build', build_dir.filename },
-        env = cmakeKits[ module_config.build_kit ].environment_variables,
-    }
+    if usePresets and not module_config.build_preset then
+        utils.notify( 'No selected build preset, please select it', vim.log.levels.ERROR )
+        return nil
+    end
+
+    if usePresets then
+        return {
+            cmd = module_config.cmd,
+            args = { '--build', '--preset', module_config.build_preset },
+        }
+    else
+        local build_dir = cmake_utils.getBuildDirFromConfig( module_config )
+        local cmakeKits = cmake_utils.getCMakeKitsFromConfig( module_config )
+
+        return {
+            cmd = module_config.cmd,
+            args = { '--build', build_dir.filename },
+            env = cmakeKits[ module_config.build_kit ].environment_variables,
+        }
+    end
 end
 
 local function build_current_file( module_config, _ )
-    local build_dir = cmake_utils.getBuildDirFromConfig( module_config )
-    local cmakeKits = cmake_utils.getCMakeKitsFromConfig( module_config )
 
     local sourceName = vim.fn.expand( '%' )
     local extension  = vim.fn.fnamemodify( sourceName, ':e' )
@@ -164,31 +218,69 @@ local function build_current_file( module_config, _ )
         return nil
     end
 
-    local build_kit_config  = cmakeKits[ module_config.build_kit ]
-    local generator = build_kit_config.generator and build_kit_config.generator or "Ninja"
+    local ninjaTarget = vim.fn.fnameescape( vim.fn.fnamemodify( sourceName, ':p' ) .. '^' )
 
-    if generator ~= "Ninja" then
-        vim.notify( 'Build current file is supported only for Ninja generator at the moment!', vim.log.levels.ERROR, { title = 'cmake_kits' } )
+    local usePresets = cmake_utils.shouldUsePresets( module_config )
+
+    if usePresets and not module_config.build_preset then
+        utils.notify( 'No selected build preset, please select it', vim.log.levels.ERROR )
         return nil
     end
 
-    local ninjaTarget = vim.fn.fnameescape( vim.fn.fnamemodify( sourceName, ':p' ) .. '^' )
-    return {
-        cmd = module_config.cmd,
-        args = { '--build', build_dir.filename, '--target', ninjaTarget },
-        env = cmakeKits[ module_config.build_kit ].environment_variables,
-    }
+    if usePresets then
+        local currentPreset = cmake_presets.get_preset_by_name( module_config.configure_preset, 'configurePresets' )
+
+        if not currentPreset or ( currentPreset.generator ~= "Ninja" and currentPreset.generator ~= 'Ninja Multi-Config' ) then
+            vim.notify( 'Build current file is supported only for Ninja generator at the moment!', vim.log.levels.ERROR, { title = 'cmake_kits' } )
+            return nil
+        end
+
+        return {
+            cmd = module_config.cmd,
+            args = { '--build', '--preset', module_config.build_preset, '--target', ninjaTarget },
+        }
+    else
+        local build_dir = cmake_utils.getBuildDirFromConfig( module_config )
+        local cmakeKits = cmake_utils.getCMakeKitsFromConfig( module_config )
+        local build_kit_config  = cmakeKits[ module_config.build_kit ]
+        local generator = build_kit_config.generator and build_kit_config.generator or "Ninja"
+
+        if generator ~= "Ninja" and generator ~= "Ninja Multi-Config" then
+            vim.notify( 'Build current file is supported only for Ninja generator at the moment!', vim.log.levels.ERROR, { title = 'cmake_kits' } )
+            return nil
+        end
+
+        return {
+            cmd = module_config.cmd,
+            args = { '--build', build_dir.filename, '--target', ninjaTarget },
+            env = cmakeKits[ module_config.build_kit ].environment_variables,
+        }
+    end
 end
 
 local function clean( module_config, _ )
-    local build_dir = cmake_utils.getBuildDirFromConfig( module_config )
-    local cmakeKits = cmake_utils.getCMakeKitsFromConfig( module_config )
+    local usePresets = cmake_utils.shouldUsePresets( module_config )
 
-    return {
-        cmd = module_config.cmd,
-        args = { '--build', build_dir.filename, '--target', 'clean' },
-        env = cmakeKits[ module_config.build_kit ].environment_variables,
-    }
+    if usePresets and not module_config.build_preset then
+        utils.notify( 'No selected build preset, please select it', vim.log.levels.ERROR )
+        return nil
+    end
+
+    if usePresets then
+        return {
+            cmd = module_config.cmd,
+            args = { '--build', '--preset', module_config.build_preset, '--target', 'clean' },
+        }
+    else
+        local build_dir = cmake_utils.getBuildDirFromConfig( module_config )
+        local cmakeKits = cmake_utils.getCMakeKitsFromConfig( module_config )
+
+        return {
+            cmd = module_config.cmd,
+            args = { '--build', build_dir.filename, '--target', 'clean' },
+            env = cmakeKits[ module_config.build_kit ].environment_variables,
+        }
+    end
 end
 
 local function purgeBuildDir( module_config, _ )
@@ -202,17 +294,32 @@ local function purgeBuildDir( module_config, _ )
 end
 
 local function runCTest( module_config, _ )
-    local build_dir = cmake_utils.getBuildDirFromConfig( module_config )
-    local cmakeKits = cmake_utils.getCMakeKitsFromConfig( module_config )
+    local usePresets = cmake_utils.shouldUsePresets( module_config )
+
+    -- assume test preset names are the same as build preset names
+    -- TODO: add support for separate test presets if needed
+    if usePresets and not module_config.build_preset then
+        utils.notify( 'No selected build preset, please select it', vim.log.levels.ERROR )
+        return nil
+    end
 
     local numcpus = vim.fn.system( 'nproc' )
+    if usePresets then
+        return {
+            cmd = 'ctest',
+            args = { '--preset', module_config.build_preset, '-j', numcpus, '--output-on-failure' },
+        }
+    else
+        local build_dir = cmake_utils.getBuildDirFromConfig( module_config )
+        local cmakeKits = cmake_utils.getCMakeKitsFromConfig( module_config )
 
-    return {
-        cmd = 'ctest',
-        args = { '-C', module_config.build_type, '-j', numcpus, '--output-on-failure' },
-        cwd = tostring( build_dir ),
-        env = cmakeKits[ module_config.build_kit ].environment_variables,
-    }
+        return {
+            cmd = 'ctest',
+            args = { '-C', module_config.build_type, '-j', numcpus, '--output-on-failure' },
+            cwd = tostring( build_dir ),
+            env = cmakeKits[ module_config.build_kit ].environment_variables,
+        }
+    end
 end
 
 
@@ -256,9 +363,12 @@ end
 
 return {
     params = {
-        target     = getTargetNames,
-        build_type = function() return getKeys( cmake_utils.getCMakeBuildTypes() ) end,
-        build_kit  = function() return getKeys( cmake_utils.getCMakeKits() ) end,
+        target           = getTargetNames,
+        build_type       = function() return getKeys( cmake_utils.getCMakeBuildTypes() ) end,
+        build_kit        = function() return getKeys( cmake_utils.getCMakeKits() ) end,
+        configure_preset = function() return cmake_presets.parse( 'configurePresets' ) end,
+        build_preset     = function() return getKeys( cmake_utils.getCompatibleBuildPresets() ) end,
+        ignore_presets   = {true, false},
     },
     condition = function() return Path:new( 'CMakeLists.txt' ):exists() end,
     tasks = {

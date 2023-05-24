@@ -2,22 +2,42 @@ local Path = require('plenary.path')
 local ProjectConfig = require( 'tasks.project_config' )
 local scandir = require( 'plenary.scandir' )
 local utils = require( 'tasks.utils' )
+local cmake_presets = require( 'tasks.cmake_presets' )
+
+-- Returns true if presets should be used
+-- @param module_config table: cmake_kits module config object or None - if not given, a global default will be used
+-- @return boolean
+local function shouldUsePresets( module_config )
+    module_config = module_config or ProjectConfig:new()[ 'cmake_kits' ]
+    if module_config.ignore_presets then
+        return false
+    else
+        return cmake_presets.check()
+    end
+end
+
 
 -- Parses build directory expression
 -- @param module_config table: cmake_kits module config object
 -- @return table
 local function getBuildDirFromConfig( module_config )
-    local build_dir = module_config.build_dir
-    local buildType = module_config.build_type
-    local buildKit = module_config.build_kit
-    local projectName = vim.fn.fnamemodify( '$PWD', ':p:h:t' )
-    local home = os.getenv( 'HOME' )
-    build_dir = build_dir:gsub( '{cwd}', vim.loop.cwd() )
-    build_dir = build_dir:gsub( '{build_type}', buildType:lower() )
-    build_dir = build_dir:gsub( '{build_kit}', buildKit:lower() )
-    build_dir = build_dir:gsub( '{project_name}', projectName )
-    build_dir = build_dir:gsub( '{home}', home )
-    return Path:new( build_dir )
+    if shouldUsePresets( module_config ) and module_config.configure_preset then
+        local currentPreset = cmake_presets.get_preset_by_name( module_config.configure_preset, 'configurePresets' )
+        local buildDirForPreset = cmake_presets.get_build_dir( currentPreset )
+        return Path:new( buildDirForPreset )
+    else
+        local build_dir = module_config.build_dir
+        local buildType = module_config.build_type
+        local buildKit = module_config.build_kit
+        local projectName = vim.fn.fnamemodify( '$PWD', ':p:h:t' )
+        local home = os.getenv( 'HOME' )
+        build_dir = build_dir:gsub( '{cwd}', vim.loop.cwd() )
+        build_dir = build_dir:gsub( '{build_type}', buildType:lower() )
+        build_dir = build_dir:gsub( '{build_kit}', buildKit:lower() )
+        build_dir = build_dir:gsub( '{project_name}', projectName )
+        build_dir = build_dir:gsub( '{home}', home )
+        return Path:new( build_dir )
+    end
 end
 
 -- Returns the currently active CMake build directory
@@ -129,27 +149,33 @@ end
 -- Returns the currently active CMake target and path to it's executable
 -- @return string, string
 local function getCurrentTargetAndExePath()
-    local cmake_config = ProjectConfig:new()[ 'cmake_kits' ]
-    local build_dir = getBuildDir()
-    local executablePath = getExecutablePath( build_dir, cmake_config.target, getReplyDir( build_dir ) )
-    return cmake_config.target, tostring( executablePath )
+    local cmakeConfig = ProjectConfig:new()[ 'cmake_kits' ]
+    local buildDir = getBuildDirFromConfig( cmakeConfig )
+    local executablePath = getExecutablePath( buildDir, cmakeConfig.target, getReplyDir( buildDir ) )
+    return cmakeConfig.target, tostring( executablePath )
 end
 
 -- Returns currently active clangd command line parameters (including path to clangd binary)
 -- @return table: first element is path to clangd binary, and other elements are clangd command line arguments
 local function currentClangdArgs()
     local module_config = ProjectConfig:new()[ 'cmake_kits' ]
-    local cmakeKits = getCMakeKitsFromConfig( module_config )
-    local buildKit = cmakeKits[ module_config.build_kit ]
     local clangdArgs = module_config.clangd_cmdline and module_config.clangd_cmdline or { 'clangd' }
-    -- this can happen when someone manually sets the build_kit
-    if not buildKit then
-        vim.notify( 'Unknown build kit ' .. module_config.build_kit .. ' set. Cannot prepare clangd parameters!', vim.log.levels.ERROR )
-        return clangdArgs
-    end
+
     table.insert( clangdArgs, "--compile-commands-dir=" .. tostring( getBuildDirFromConfig( module_config ) ) )
-    if buildKit.query_driver then
-        table.insert( clangdArgs, '--query-driver=' .. buildKit.query_driver )
+
+    if shouldUsePresets( module_config ) and module_config.configure_preset then
+        -- TODO: detect query-driver from preset toolchain
+    else
+        local cmakeKits = getCMakeKitsFromConfig( module_config )
+        local buildKit = cmakeKits[ module_config.build_kit ]
+        -- this can happen when someone manually sets the build_kit
+        if not buildKit then
+            vim.notify( 'Unknown build kit ' .. module_config.build_kit .. ' set. Cannot prepare clangd parameters!', vim.log.levels.ERROR )
+            return clangdArgs
+        end
+        if buildKit.query_driver then
+            table.insert( clangdArgs, '--query-driver=' .. buildKit.query_driver )
+        end
     end
     return clangdArgs
 end
@@ -163,19 +189,69 @@ local function reconfigureClangd()
     vim.api.nvim_command( 'LspRestart clangd' )
 end
 
+-- Returns only build presets that match currently active configure preset
+-- @param module_config current module config or none (in that case global default will be used)
+-- @return table: compatible build presets
+local function getCompatibleBuildPresets( module_config )
+    module_config = module_config or ProjectConfig:new()[ 'cmake_kits' ]
+    if not module_config.configure_preset then
+        utils.notify( 'Configure preset not selected.', vim.log.levels.ERROR )
+        return nil
+    end
+
+    local buildPresets = cmake_presets.parse_name_mapped( 'buildPresets' )
+    local compatiblePresets = {}
+
+    for presetName, preset in pairs( buildPresets ) do
+        if preset.configurePreset == module_config.configure_preset then
+            compatiblePresets[ presetName ] = preset
+        end
+    end
+
+    return compatiblePresets
+end
+
+local function autoselectBuildPresetForSameBuildType()
+    local projectConfig = ProjectConfig:new()
+    local cmakeConfig = projectConfig[ 'cmake_kits' ]
+    if not cmakeConfig.configure_preset or not cmakeConfig.build_preset then
+        return
+    end
+
+    -- first detect build type of currently active build preset
+    local currentBuildPreset = cmake_presets.get_preset_by_name( cmakeConfig.build_preset, 'buildPresets' )
+    if not currentBuildPreset then
+        return
+    end
+    local buildType = currentBuildPreset.configuration
+    local compatibleBuildPresets = getCompatibleBuildPresets( cmakeConfig )
+    if not compatibleBuildPresets then
+        return
+    end
+    for presetName, preset in pairs( compatibleBuildPresets ) do
+        if preset.configuration == buildType then
+            cmakeConfig[ 'build_preset' ] = presetName
+            projectConfig:write()
+            return
+        end
+    end
+end
 
 return {
+    autoselectBuildPresetForSameBuildType = autoselectBuildPresetForSameBuildType,
+    currentClangdArgs = currentClangdArgs,
     getBuildDir = getBuildDir,
     getBuildDirFromConfig = getBuildDirFromConfig,
-    getExecutablePath = getExecutablePath,
-    getCurrentTargetAndExePath = getCurrentTargetAndExePath,
-    getReplyDir = getReplyDir,
-    getCodemodelTargets = getCodemodelTargets,
-    getTargetInfo = getTargetInfo,
-    getCMakeKits = getCMakeKits,
-    getCMakeKitsFromConfig = getCMakeKitsFromConfig,
     getCMakeBuildTypes = getCMakeBuildTypes,
     getCMakeBuildTypesFromConfig = getCMakeBuildTypesFromConfig,
-    currentClangdArgs = currentClangdArgs,
+    getCMakeKits = getCMakeKits,
+    getCMakeKitsFromConfig = getCMakeKitsFromConfig,
+    getCodemodelTargets = getCodemodelTargets,
+    getCompatibleBuildPresets = getCompatibleBuildPresets,
+    getCurrentTargetAndExePath = getCurrentTargetAndExePath,
+    getExecutablePath = getExecutablePath,
+    getReplyDir = getReplyDir,
+    getTargetInfo = getTargetInfo,
     reconfigureClangd = reconfigureClangd,
+    shouldUsePresets = shouldUsePresets,
 }
