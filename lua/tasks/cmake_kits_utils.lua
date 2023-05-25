@@ -163,12 +163,26 @@ local function getExecutablePath( buildDir, name, buildType, replyDir )
     return nil
 end
 
+local function getCurrentBuildType( module_config )
+    module_config = module_config or ProjectConfig:new()[ 'cmake_kits' ]
+    if shouldUsePresets( module_config ) and module_config.build_preset then
+        local currentBuildPreset = cmake_presets.get_preset_by_name( module_config.build_preset, 'buildPresets' )
+        if not currentBuildPreset then
+            return module_config.build_type
+        else
+            return currentBuildPreset.configuration
+        end
+    else
+        return module_config.build_type
+    end
+end
+
 -- Returns the currently active CMake target and path to it's executable
 -- @return string, string
 local function getCurrentTargetAndExePath()
     local cmakeConfig = ProjectConfig:new()[ 'cmake_kits' ]
     local buildDir = getBuildDirFromConfig( cmakeConfig )
-    local executablePath = getExecutablePath( buildDir, cmakeConfig.target, getReplyDir( buildDir ) )
+    local executablePath = getExecutablePath( buildDir, cmakeConfig.target, getCurrentBuildType( cmakeConfig ), getReplyDir( buildDir ) )
     return cmakeConfig.target, tostring( executablePath )
 end
 
@@ -269,20 +283,6 @@ local function autoselectConfigurePresetFromCurrentBuildPreset( projectConfig )
 
     cmakeConfig[ 'configure_preset' ] = currentBuildPreset.configurePreset
     projectConfig:write()
-end
-
-local function getCurrentBuildType( module_config )
-    module_config = module_config or ProjectConfig:new()[ 'cmake_kits' ]
-    if shouldUsePresets( module_config ) and module_config.build_preset then
-        local currentBuildPreset = cmake_presets.get_preset_by_name( module_config.build_preset, 'buildPresets' )
-        if not currentBuildPreset then
-            return module_config.build_type
-        else
-            return currentBuildPreset.configuration
-        end
-    else
-        return module_config.build_type
-    end
 end
 
 return {
