@@ -367,7 +367,7 @@ return {
         build_type       = function() return getKeys( cmake_utils.getCMakeBuildTypes() ) end,
         build_kit        = function() return getKeys( cmake_utils.getCMakeKits() ) end,
         configure_preset = function() return cmake_presets.parse( 'configurePresets' ) end,
-        build_preset     = function() return getKeys( cmake_utils.getCompatibleBuildPresets() ) end,
+        build_preset     = function() return cmake_presets.parse( 'buildPresets'     ) end,
         ignore_presets   = {true, false},
     },
     condition = function() return Path:new( 'CMakeLists.txt' ):exists() end,

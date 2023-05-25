@@ -211,8 +211,8 @@ local function getCompatibleBuildPresets( module_config )
     return compatiblePresets
 end
 
-local function autoselectBuildPresetForSameBuildType()
-    local projectConfig = ProjectConfig:new()
+local function autoselectBuildPresetForSameBuildType( projectConfig )
+    projectConfig = projectConfig or ProjectConfig:new()
     local cmakeConfig = projectConfig[ 'cmake_kits' ]
     if not cmakeConfig.configure_preset or not cmakeConfig.build_preset then
         return
@@ -237,8 +237,26 @@ local function autoselectBuildPresetForSameBuildType()
     end
 end
 
+local function autoselectConfigurePresetFromCurrentBuildPreset( projectConfig )
+    projectConfig = projectConfig or ProjectConfig:new()
+    local cmakeConfig = projectConfig[ 'cmake_kits' ]
+
+    if not cmakeConfig.build_preset then
+        return
+    end
+
+    local currentBuildPreset = cmake_presets.get_preset_by_name( cmakeConfig.build_preset, 'buildPresets' )
+    if not currentBuildPreset then
+        return
+    end
+
+    cmakeConfig[ 'configure_preset' ] = currentBuildPreset.configurePreset
+    projectConfig:write()
+end
+
 return {
     autoselectBuildPresetForSameBuildType = autoselectBuildPresetForSameBuildType,
+    autoselectConfigurePresetFromCurrentBuildPreset = autoselectConfigurePresetFromCurrentBuildPreset,
     currentClangdArgs = currentClangdArgs,
     getBuildDir = getBuildDir,
     getBuildDirFromConfig = getBuildDirFromConfig,
