@@ -106,28 +106,45 @@ local function getReplyDir( build_dir ) return build_dir / '.cmake' / 'api' / 'v
 local function getTargetInfo( codemodel_target, reply_dir ) return vim.json.decode( ( reply_dir / codemodel_target['jsonFile'] ):read() ) end
 
 --- Reads targets information.
----@param reply_dir table
+---@param replyDir table
 ---@return table?
-local function getCodemodelTargets( reply_dir )
-    local found_files = scandir.scan_dir( reply_dir.filename, { search_pattern = 'codemodel*' } )
+local function getCodemodelTargets( replyDir, buildType )
+    local found_files = scandir.scan_dir( replyDir.filename, { search_pattern = 'codemodel*' } )
     if #found_files == 0 then
         utils.notify( 'Unable to find codemodel file', vim.log.levels.ERROR )
         return nil
     end
     local codemodel = Path:new( found_files[ 1 ] )
     local codemodel_json = vim.json.decode( codemodel:read() )
-    return codemodel_json[ 'configurations' ][ 1 ][ 'targets' ]
+    local configurations = codemodel_json[ 'configurations' ]
+    local selectedConfiguration = configurations[ 1 ]
+    if #configurations > 1 then
+        -- multi-config build, select correct configuration
+        for _, conf in ipairs( configurations ) do
+            if buildType == conf[ 'name' ] then
+                selectedConfiguration = conf
+                break
+            end
+        end
+    end
+
+    return selectedConfiguration[ 'targets' ]
 end
 
 --- Finds path to an executable.
----@param build_dir table
+---@param buildDir table
 ---@param name string
----@param reply_dir table
+---@param buildType string
+---@param replyDir table
 ---@return unknown?
-local function getExecutablePath( build_dir, name, reply_dir )
-    for _, target in ipairs( getCodemodelTargets( reply_dir ) ) do
+local function getExecutablePath( buildDir, name, buildType, replyDir )
+    local codemodelTargets = getCodemodelTargets( replyDir, buildType )
+    if not codemodelTargets then
+        return nil
+    end
+    for _, target in ipairs( codemodelTargets ) do
         if name == target[ 'name' ] then
-            local target_info = getTargetInfo( target, reply_dir )
+            local target_info = getTargetInfo( target, replyDir )
             if target_info[ 'type' ] ~= 'EXECUTABLE' then
                 utils.notify( string.format( 'Specified target "%s" is not an executable', name ), vim.log.levels.ERROR )
                 return nil
@@ -135,7 +152,7 @@ local function getExecutablePath( build_dir, name, reply_dir )
 
             local target_path = Path:new( target_info[ 'artifacts' ][ 1 ][ 'path' ] )
             if not target_path:is_absolute() then
-                target_path = build_dir / target_path
+                target_path = buildDir / target_path
             end
 
             return target_path
@@ -254,6 +271,20 @@ local function autoselectConfigurePresetFromCurrentBuildPreset( projectConfig )
     projectConfig:write()
 end
 
+local function getCurrentBuildType( module_config )
+    module_config = module_config or ProjectConfig:new()[ 'cmake_kits' ]
+    if shouldUsePresets( module_config ) and module_config.build_preset then
+        local currentBuildPreset = cmake_presets.get_preset_by_name( module_config.build_preset, 'buildPresets' )
+        if not currentBuildPreset then
+            return module_config.build_type
+        else
+            return currentBuildPreset.configuration
+        end
+    else
+        return module_config.build_type
+    end
+end
+
 return {
     autoselectBuildPresetForSameBuildType = autoselectBuildPresetForSameBuildType,
     autoselectConfigurePresetFromCurrentBuildPreset = autoselectConfigurePresetFromCurrentBuildPreset,
@@ -266,6 +297,7 @@ return {
     getCMakeKitsFromConfig = getCMakeKitsFromConfig,
     getCodemodelTargets = getCodemodelTargets,
     getCompatibleBuildPresets = getCompatibleBuildPresets,
+    getCurrentBuildType = getCurrentBuildType,
     getCurrentTargetAndExePath = getCurrentTargetAndExePath,
     getExecutablePath = getExecutablePath,
     getReplyDir = getReplyDir,

@@ -335,7 +335,12 @@ local function run( module_config, _ )
         return nil
     end
 
-    local target_path = cmake_utils.getExecutablePath( build_dir, module_config.target, cmake_utils.getReplyDir( build_dir ) )
+    local target_path = cmake_utils.getExecutablePath(
+        build_dir,
+        module_config.target,
+        cmake_utils.getCurrentBuildType( module_config ),
+        cmake_utils.getReplyDir( build_dir )
+    )
     if not target_path then
         return
     end

@@ -222,8 +222,6 @@ function presets.get_build_dir(preset)
     build_dir = build_dir:gsub("${dollar}", "$")
     build_dir = build_dir:gsub("${pathListSep}", "/")
 
-    build_dir = vim.fn.fnamemodify(build_dir, ":.")
-
     return build_dir
 end
 
