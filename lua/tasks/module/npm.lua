@@ -1,10 +1,7 @@
-local Job = require( 'plenary.job' )
 local Path = require( 'plenary.path' )
-local ProjectConfig = require( 'tasks.project_config' )
-local utils = require( 'tasks.utils' )
 
 local function install( module_config, _ )
-    local cwd = module_config.working_directory and module_config.working_directory or vim.loop.cwd()
+    local cwd = module_config.working_directory or vim.loop.cwd()
     return {
         cmd = 'npm',
         cwd = cwd,
@@ -13,7 +10,7 @@ local function install( module_config, _ )
 end
 
 local function run( module_config, _ )
-    local cwd = module_config.working_directory and module_config.working_directory or vim.loop.cwd()
+    local cwd = module_config.working_directory or vim.loop.cwd()
     return {
         cmd = 'npm',
         cwd = cwd,
