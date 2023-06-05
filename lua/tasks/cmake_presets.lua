@@ -68,13 +68,15 @@ local function decode(file)
     end
 
     for _, f in ipairs(includes) do
-        local fdata = vim.fn.json_decode(vim.fn.readfile(f))
-        local thisFilePresetKeys = vim.tbl_filter(function(key)
-            return string.find(key, "Presets")
-        end, vim.tbl_keys(fdata))
+        if Path:new( f ):exists() then
+            local fdata = vim.fn.json_decode(vim.fn.readfile(f))
+            local thisFilePresetKeys = vim.tbl_filter(function(key)
+                return string.find(key, "Presets")
+            end, vim.tbl_keys(fdata))
 
-        for _, eachPreset in ipairs(thisFilePresetKeys) do
-            merge_table_list_by_key(data, fdata, eachPreset)
+            for _, eachPreset in ipairs(thisFilePresetKeys) do
+                merge_table_list_by_key(data, fdata, eachPreset)
+            end
         end
     end
 
@@ -138,9 +140,11 @@ function presets.get_preset_by_name(name, type)
         return nil
     end
     local data = decode(file)
-    for _, v in pairs(data[type]) do
-        if v.name == name then
-            return v
+    if data[ type ] then
+        for _, v in pairs(data[type]) do
+            if v.name == name then
+                return v
+            end
         end
     end
     return nil
@@ -156,6 +160,9 @@ end
 
 -- Retrieve build directory from preset
 function presets.get_build_dir(preset)
+    if not preset then
+        return nil
+    end
     -- check if this preset is extended
     local function helper(p_preset)
         local build_dir = ""
