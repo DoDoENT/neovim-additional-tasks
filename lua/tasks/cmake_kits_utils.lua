@@ -186,16 +186,41 @@ local function getCurrentTargetAndExePath()
     return cmakeConfig.target, tostring( executablePath )
 end
 
+local function filterClangdFlags(origArgs)
+    local filteredArgs = {}
+    for _, flag in ipairs( origArgs ) do
+        -- escaping magic characters: https://www.gammon.com.au/scripts/doc.php?lua=string.find
+        if not string.find( flag, 'compile%-commands%-dir' ) and not string.find( flag, 'query%-driver' ) then
+            table.insert( filteredArgs, flag )
+        end
+    end
+    return filteredArgs
+end
+
 -- Returns currently active clangd command line parameters (including path to clangd binary)
 -- @return table: first element is path to clangd binary, and other elements are clangd command line arguments
 local function currentClangdArgs()
     local module_config = ProjectConfig:new()[ 'cmake_kits' ]
     local clangdArgs = module_config.clangd_cmdline and module_config.clangd_cmdline or { 'clangd' }
 
+    -- clean old compile-commands-dir and/or query-driver flags, if any
+    clangdArgs = filterClangdFlags( clangdArgs )
+
     table.insert( clangdArgs, "--compile-commands-dir=" .. tostring( getBuildDirFromConfig( module_config ) ) )
 
     if shouldUsePresets( module_config ) and module_config.configure_preset then
-        -- TODO: detect query-driver from preset toolchain
+        local currentPreset = cmake_presets.get_preset_by_name( module_config.configure_preset, 'configurePresets' )
+        if currentPreset.toolchainFile then
+            local toolchainFile = vim.fn.readfile(currentPreset.toolchainFile)
+            for _, line in ipairs( toolchainFile ) do
+                -- try finding CMAKE_CXX_COMPILER value
+                local _, _, path = string.find( line, 'set%(%s*CMAKE_CXX_COMPILER "(.+)"%s*%)' )
+                if path then
+                    table.insert( clangdArgs, '--query-driver=' .. path )
+                    break
+                end
+            end
+        end
     else
         local cmakeKits = getCMakeKitsFromConfig( module_config )
         local buildKit = cmakeKits[ module_config.build_kit ]
