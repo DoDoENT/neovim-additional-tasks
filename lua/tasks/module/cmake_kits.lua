@@ -366,6 +366,38 @@ local function debug( module_config, _ )
     return command
 end
 
+local function setupCMakeDAP( configure_command )
+    local dap = require('dap')
+    local args = { '--debugger', '--debugger-pipe=${pipe}' }
+    vim.list_extend( args, configure_command.args )
+
+    dap.adapters.cmake = {
+        type = 'pipe',
+        pipe = '${pipe}',
+        executable = {
+            command = configure_command.cmd,
+            args = args,
+        },
+    }
+    dap.configurations.cmake = {
+        type = 'cmake',
+        request = 'attach',
+        name = 'CMake Debugger',
+    }
+end
+
+local function configureDebug( module_config, _ )
+    local command = configure( module_config, nil )
+    if not command then
+        return nil
+    end
+
+    setupCMakeDAP( command )
+
+    command.dap_name = 'cmake'
+    return command
+end
+
 return {
     params = {
         target           = getTargetNames,
@@ -378,6 +410,7 @@ return {
     condition = function() return Path:new( 'CMakeLists.txt' ):exists() end,
     tasks = {
         configure = configure,
+        configureDebug = configureDebug,
         build = build,
         build_all = build_all,
         build_current_file = build_current_file,
