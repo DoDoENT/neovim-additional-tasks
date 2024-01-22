@@ -7,7 +7,7 @@ local function getSupportedProfiles()
     -- filter only android and emscripten profiles, as they don't depend on local environment variables
     for _, profile in ipairs( allProfiles ) do
         if not string.find( profile, 'base' ) then
-            if string.find( profile, 'android' ) or string.find( profile, 'emscripten' ) then
+            if string.find( profile, 'android' ) or string.find( profile, 'emscripten' ) or ( string.find( profile, 'ninja' ) and not string.find( profile, 'generic' ) ) then
                 table.insert( profileList, profile )
             end
         end
