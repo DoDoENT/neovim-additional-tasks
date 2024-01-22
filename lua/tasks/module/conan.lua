@@ -46,12 +46,16 @@ local function project( module_config, _ )
     local buildDir = getInstallDir( module_config )
     local generator = 'ninja'
     local profile = module_config.profile or 'automatic'
+    local host_generator = 'ninja'
     if vim.fn.has( 'macunix' ) then
         if profile == 'automatic-xcode' or profile == 'mac-catalyst' or string.find( profile, 'ios' ) then
             generator = 'ide'
         end
+        if profile == 'automatic-xcode' then
+            host_generator = 'ide'
+        end
     end
-    local args = { 'project', generator, '--install-only', '--build=missing', '--output-folder', buildDir.filename, '--host-generator', 'ninja', '--lockfile-partial' }
+    local args = { 'project', generator, '--install-only', '--build=missing', '--output-folder', buildDir.filename, '--host-generator', host_generator, '--lockfile-partial' }
     local isAutomaticProfile = not not string.find( profile, 'automatic' )
     if vim.fn.has( 'macunix' ) then
         if profile == 'ios-device' then
