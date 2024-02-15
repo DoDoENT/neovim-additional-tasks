@@ -79,11 +79,10 @@ local function configure( module_config, _ )
     if usePresets then
         local currentPreset = module_config.configure_preset
 
-        local args = { '--preset', currentPreset, '-DCMAKE_EXPORT_COMPILE_COMMANDS=ON' }
-
         return {
             cmd = module_config.cmd,
-            args = args,
+            cwd = module_config.source_dir,
+            args = { '--preset', currentPreset, '-DCMAKE_EXPORT_COMPILE_COMMANDS=ON' },
             after_success = cmake_utils.reconfigureClangd,
         }
     else
@@ -158,6 +157,7 @@ local function build( module_config, _ )
 
         return {
             cmd = module_config.cmd,
+            cwd = module_config.source_dir,
             args = args
         }
     else
@@ -188,6 +188,7 @@ local function build_all( module_config, _ )
     if usePresets then
         return {
             cmd = module_config.cmd,
+            cwd = module_config.source_dir,
             args = { '--build', '--preset', module_config.build_preset },
         }
     else
@@ -228,7 +229,7 @@ local function build_current_file( module_config, _ )
     end
 
     if usePresets then
-        local currentPreset = cmake_presets.get_preset_by_name( module_config.configure_preset, 'configurePresets' )
+        local currentPreset = cmake_presets.get_preset_by_name( module_config.configure_preset, 'configurePresets', module_config.source_dir )
 
         if not currentPreset or ( currentPreset.generator ~= "Ninja" and currentPreset.generator ~= 'Ninja Multi-Config' ) then
             vim.notify( 'Build current file is supported only for Ninja generator at the moment!', vim.log.levels.ERROR, { title = 'cmake_kits' } )
@@ -237,6 +238,7 @@ local function build_current_file( module_config, _ )
 
         return {
             cmd = module_config.cmd,
+            cwd = module_config.source_dir,
             args = { '--build', '--preset', module_config.build_preset, '--target', ninjaTarget },
         }
     else
@@ -267,9 +269,12 @@ local function clean( module_config, _ )
     end
 
     if usePresets then
+        local args = { '--build', '--preset', module_config.build_preset, '--target', 'clean' }
+
         return {
             cmd = module_config.cmd,
-            args = { '--build', '--preset', module_config.build_preset, '--target', 'clean' },
+            cwd = module_config.source_dir,
+            args = args,
         }
     else
         local build_dir = cmake_utils.getBuildDirFromConfig( module_config )
@@ -277,6 +282,7 @@ local function clean( module_config, _ )
 
         return {
             cmd = module_config.cmd,
+            cwd = module_config.source_dir,
             args = { '--build', build_dir.filename, '--target', 'clean' },
             env = cmakeKits[ module_config.build_kit ].environment_variables,
         }
@@ -307,6 +313,7 @@ local function runCTest( module_config, _ )
     if usePresets then
         return {
             cmd = 'ctest',
+            cwd = module_config.source_dir,
             args = { '--preset', module_config.build_preset, '-j', numcpus, '--output-on-failure' },
         }
     else

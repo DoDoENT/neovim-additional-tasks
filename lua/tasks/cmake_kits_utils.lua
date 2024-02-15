@@ -12,7 +12,7 @@ local function shouldUsePresets( module_config )
     if module_config.ignore_presets then
         return false
     else
-        return cmake_presets.check()
+        return cmake_presets.check( module_config.source_dir )
     end
 end
 
@@ -22,7 +22,7 @@ end
 -- @return table
 local function getBuildDirFromConfig( module_config )
     if shouldUsePresets( module_config ) and module_config.configure_preset then
-        local currentPreset = cmake_presets.get_preset_by_name( module_config.configure_preset, 'configurePresets' )
+        local currentPreset = cmake_presets.get_preset_by_name( module_config.configure_preset, 'configurePresets', module_config.source_dir )
         local buildDirForPreset = cmake_presets.get_build_dir( currentPreset )
         return Path:new( buildDirForPreset )
     else
@@ -166,7 +166,7 @@ end
 local function getCurrentBuildType( module_config )
     module_config = module_config or ProjectConfig:new()[ 'cmake_kits' ]
     if shouldUsePresets( module_config ) and module_config.build_preset then
-        local currentBuildPreset = cmake_presets.get_preset_by_name( module_config.build_preset, 'buildPresets' )
+        local currentBuildPreset = cmake_presets.get_preset_by_name( module_config.build_preset, 'buildPresets', module_config.source_dir )
         if not currentBuildPreset then
             return module_config.build_type
         else
@@ -209,7 +209,7 @@ local function currentClangdArgs()
     table.insert( clangdArgs, "--compile-commands-dir=" .. tostring( getBuildDirFromConfig( module_config ) ) )
 
     if shouldUsePresets( module_config ) and module_config.configure_preset then
-        local currentPreset = cmake_presets.get_preset_by_name( module_config.configure_preset, 'configurePresets' )
+        local currentPreset = cmake_presets.get_preset_by_name( module_config.configure_preset, 'configurePresets', module_config.source_dir )
         if currentPreset.toolchainFile then
             local toolchainFile = vim.fn.readfile(currentPreset.toolchainFile)
             for _, line in ipairs( toolchainFile ) do
@@ -255,7 +255,7 @@ local function getCompatibleBuildPresets( module_config )
         return nil
     end
 
-    local buildPresets = cmake_presets.parse_name_mapped( 'buildPresets' )
+    local buildPresets = cmake_presets.parse_name_mapped( 'buildPresets', nil, module_config.source_dir )
     local compatiblePresets = {}
 
     for presetName, preset in pairs( buildPresets ) do
@@ -275,7 +275,7 @@ local function autoselectBuildPresetForSameBuildType( projectConfig )
     end
 
     -- first detect build type of currently active build preset
-    local currentBuildPreset = cmake_presets.get_preset_by_name( cmakeConfig.build_preset, 'buildPresets' )
+    local currentBuildPreset = cmake_presets.get_preset_by_name( cmakeConfig.build_preset, 'buildPresets', cmakeConfig.source_dir )
     if not currentBuildPreset then
         return
     end
@@ -301,7 +301,7 @@ local function autoselectConfigurePresetFromCurrentBuildPreset( projectConfig )
         return
     end
 
-    local currentBuildPreset = cmake_presets.get_preset_by_name( cmakeConfig.build_preset, 'buildPresets' )
+    local currentBuildPreset = cmake_presets.get_preset_by_name( cmakeConfig.build_preset, 'buildPresets', cmakeConfig.source_dir )
     if not currentBuildPreset then
         return
     end

@@ -5,19 +5,20 @@ local Path = require("plenary.path")
 local presets = {}
 
 -- Checks if there is a CMakePresets.json or CMakeUserPresets.json file
--- in the current directory, a CMakeUserPresets.json is
+-- in the given directory, a CMakeUserPresets.json is
 -- preferred over CMakePresets.json as CMakePresets.json
 -- is implicitly included by CMakeUserPresets.json
-function presets.check()
+function presets.check( path )
+    path = path or "."
     -- helper function to find the config file
     -- returns file path if found, nil otherwise
-    local function findcfg()
-        local files = vim.fn.readdir(".")
+    local function findcfg(dirPath)
+        local files = vim.fn.readdir(dirPath)
         local file = nil
         local presetFiles = {}
         for _, f in ipairs(files) do                                         -- iterate over files in current directory
             if f == "CMakePresets.json" or f == "CMakeUserPresets.json" then -- if a preset file is found
-                presetFiles[#presetFiles + 1] = vim.fn.resolve("./" .. f)
+                presetFiles[#presetFiles + 1] = vim.fn.resolve(dirPath .. "/" .. f)
             end
         end
         table.sort(presetFiles, function(a, b)
@@ -29,7 +30,7 @@ function presets.check()
         return file
     end
 
-    local file = findcfg() -- check for config file
+    local file = findcfg( path ) -- check for config file
 
     return file
 end
@@ -87,9 +88,10 @@ end
 -- @param type: `buildPresets` or `configurePresets`
 -- @param {opts}: include_hidden(bool|nil).
 --                If true, hidden preset will be included in result.
+-- @param path: Path to directory where presets file will be loaded from
 -- @returns : list with all preset names
-function presets.parse(type, opts)
-    local file = presets.check()
+function presets.parse(type, opts, path)
+    local file = presets.check(path)
     local options = {}
     if not file then
         return options
@@ -111,9 +113,10 @@ end
 -- @param type: `buildPresets` or `configurePresets`
 -- @param {opts}: include_hidden(bool|nil).
 --                If true, hidden preset will be included in result.
+-- @param path: Path to directory where presets file will be loaded from
 -- @returns : table with preset name as key and preset content as value
-function presets.parse_name_mapped(type, opts)
-    local file = presets.check()
+function presets.parse_name_mapped(type, opts, path)
+    local file = presets.check(path)
     local options = {}
     if not file then
         return options
@@ -134,8 +137,9 @@ end
 -- Retrieve preset by name and type
 -- @param name: from `name` option
 -- @param type: `buildPresets` or `configurePresets`
-function presets.get_preset_by_name(name, type)
-    local file = presets.check()
+-- @param path: Path to directory where presets file will be loaded from
+function presets.get_preset_by_name(name, type, path)
+    local file = presets.check(path)
     if not file then
         return nil
     end
