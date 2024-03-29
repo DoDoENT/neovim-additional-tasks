@@ -299,6 +299,10 @@ local function purgeBuildDir( module_config, _ )
     }
 end
 
+local function trim( s )
+   return s:match'^%s*(.*%S)' or ''
+end
+
 local function runCTest( module_config, _ )
     local usePresets = cmake_utils.shouldUsePresets( module_config )
 
@@ -309,7 +313,7 @@ local function runCTest( module_config, _ )
         return nil
     end
 
-    local numcpus = vim.fn.system( 'nproc' )
+    local numcpus = trim( vim.fn.system( 'nproc' ) )
     if usePresets then
         return {
             cmd = 'ctest',
