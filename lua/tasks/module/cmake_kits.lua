@@ -428,6 +428,7 @@ return {
         run = { build, run },
         debug = { build, debug },
         clean = clean,
+        rebuild = { clean, build },
         ctest = runCTest,
         purge = purgeBuildDir,
         reconfigure = { purgeBuildDir, configure }
