@@ -211,7 +211,11 @@ local function currentClangdArgs()
     if shouldUsePresets( module_config ) and module_config.configure_preset then
         local currentPreset = cmake_presets.get_preset_by_name( module_config.configure_preset, 'configurePresets', module_config.source_dir )
         if currentPreset.toolchainFile then
-            local toolchainFile = vim.fn.readfile(currentPreset.toolchainFile)
+            local presetAbsolutePath = Path:new(currentPreset.toolchainFile)
+            if not presetAbsolutePath:is_absolute() then
+                presetAbsolutePath = Path:new( currentPreset.binaryDir ) / presetAbsolutePath
+            end
+            local toolchainFile = vim.fn.readfile(presetAbsolutePath:absolute())
             for _, line in ipairs( toolchainFile ) do
                 -- try finding CMAKE_CXX_COMPILER value
                 local _, _, path = string.find( line, 'set%(%s*CMAKE_CXX_COMPILER "(.+)"%s*%)' )
