@@ -233,6 +233,10 @@ function presets.get_build_dir(preset)
     build_dir = build_dir:gsub("${dollar}", "$")
     build_dir = build_dir:gsub("${pathListSep}", "/")
 
+    build_dir = build_dir:gsub("%$env{(.-)}", function(env_var)
+        return vim.fn.getenv(env_var) or ""
+    end)
+
     return build_dir
 end
 
