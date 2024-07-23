@@ -69,6 +69,11 @@ local function decode(file)
     end
 
     for _, f in ipairs(includes) do
+        local fpath = Path:new( f )
+        if not fpath:is_absolute() then
+            fpath = Path:new( file ):parent():joinpath( fpath )
+            f = tostring(fpath)
+        end
         if Path:new( f ):exists() then
             local fdata = vim.fn.json_decode(vim.fn.readfile(f))
             local thisFilePresetKeys = vim.tbl_filter(function(key)
@@ -78,6 +83,8 @@ local function decode(file)
             for _, eachPreset in ipairs(thisFilePresetKeys) do
                 merge_table_list_by_key(data, fdata, eachPreset)
             end
+        else
+            error(string.format("Invalid include path %s", f ) )
         end
     end
 
