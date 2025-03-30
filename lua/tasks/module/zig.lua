@@ -4,7 +4,7 @@ local utils = require( 'tasks.utils' )
 local function build( module_config, _ )
      return {
         cmd = 'zig',
-        args = vim.list_extend({ 'build', '--verbose' }, utils.split_args(module_config.global_zig_args)),
+        args = vim.list_extend({ 'build' }, utils.split_args(module_config.global_zig_args)),
         ignore_stdout = true,
       }
 end
