@@ -339,7 +339,8 @@ Use the following snippet to configure `neovim-tasks` plugin as, described in [p
 require('tasks').setup({
     default_params = {
         npm = {
-            working_directory = vim.loop.cwd() -- working directory in which NPM will be invoked
+            working_directory = vim.loop.cwd(), -- working directory in which NPM will be invoked
+            npm_command = 'npm'  -- npm command which will be invoked. If using yarn or pnpm, change here.
         },
     }
 })
