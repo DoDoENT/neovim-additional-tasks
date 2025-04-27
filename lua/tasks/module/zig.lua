@@ -1,5 +1,4 @@
 local Path = require( 'plenary.path' )
-local utils = require( 'tasks.utils' )
 
 local build_type_map = {
     Debug = 'off',
@@ -15,6 +14,16 @@ local function build( module_config, _ )
         cmd = 'zig',
         args = { 'build', build_target, '--release=' .. build_type }
       }
+end
+
+local function get_build_steps()
+    local allSteps = vim.fn.systemlist( 'zig build --list-steps' )
+    local stepNames = {}
+    for _, step in ipairs( allSteps ) do
+        local firstWord = string.gmatch( step, "%w+" )()
+        table.insert( stepNames, firstWord )
+    end
+    return stepNames
 end
 
 local function clean( _, _ )
@@ -41,33 +50,6 @@ local function run_file( module_config, _ )
       }
 end
 
-local function build_test_file(module_config, _)
-    local currentSource = vim.fn.expand('%')
-    local srcFilename = vim.fn.fnamemodify(currentSource, ':t:r')
-    return {
-        cmd = 'zig',
-        args = { 'test', currentSource, '-femit-bin=.zig-cache/test-' .. srcFilename, '--test-no-exec', '-O' .. module_config.build_type },
-    }
-end
-
-local function debug_test_file(module_config, _)
-    local currentSource = vim.fn.expand('%')
-    local srcFilename = vim.fn.fnamemodify(currentSource, ':t:r')
-    return {
-        cmd = '.zig-cache/test-' .. srcFilename,
-        dap_name = module_config.dap_name
-    }
-
-end
-
-local function test( module_config, _ )
-    local currentSource = vim.fn.expand( '%' )
-     return {
-        cmd = 'zig',
-        args = { 'test', '-O' .. module_config.build_type, currentSource },
-      }
-end
-
 local function build_file_as_exe( module_config, _ )
     local currentSource = vim.fn.expand('%')
     local srcFilename = vim.fn.fnamemodify(currentSource, ':t:r')
@@ -86,14 +68,30 @@ local function debug_file( module_config, _ )
       }
 end
 
-local function get_build_steps()
-    local allSteps = vim.fn.systemlist( 'zig build --list-steps' )
-    local stepNames = {}
-    for _, step in ipairs( allSteps ) do
-        local firstWord = string.gmatch( step, "%w+" )()
-        table.insert( stepNames, firstWord )
-    end
-    return stepNames
+local function test_file( module_config, _ )
+    local currentSource = vim.fn.expand( '%' )
+     return {
+        cmd = 'zig',
+        args = { 'test', '-O' .. module_config.build_type, currentSource },
+      }
+end
+
+local function build_test_file(module_config, _)
+    local currentSource = vim.fn.expand('%')
+    local srcFilename = vim.fn.fnamemodify(currentSource, ':t:r')
+    return {
+        cmd = 'zig',
+        args = { 'test', currentSource, '-femit-bin=.zig-cache/test-' .. srcFilename, '--test-no-exec', '-O' .. module_config.build_type },
+    }
+end
+
+local function debug_test_file(module_config, _)
+    local currentSource = vim.fn.expand('%')
+    local srcFilename = vim.fn.fnamemodify(currentSource, ':t:r')
+    return {
+        cmd = '.zig-cache/test-' .. srcFilename,
+        dap_name = module_config.dap_name
+    }
 end
 
 return {
@@ -110,7 +108,7 @@ return {
         clean_all = { clean, clean_cache },
         run_file = run_file,
         debug_file = { build_file_as_exe, debug_file },
-        test_file = test,
+        test_file = test_file,
         debug_test_file = { build_test_file, debug_test_file },
     }
 }
