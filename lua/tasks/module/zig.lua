@@ -64,7 +64,7 @@ local function test( module_config, _ )
     local currentSource = vim.fn.expand( '%' )
      return {
         cmd = 'zig',
-        args = vim.list_extend({ 'test', currentSource }, utils.split_args(module_config.global_zig_args)),
+        args = { 'test', '-O' .. module_config.build_type, currentSource },
       }
 end
 
