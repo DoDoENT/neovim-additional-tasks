@@ -384,7 +384,7 @@ require('tasks').setup({
         zig = {
             dap_name = 'codelldb',
             build_type = 'Debug',
-            build_step = 'run',
+            build_step = 'install',
         },
     }
 })
