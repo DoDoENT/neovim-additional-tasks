@@ -94,6 +94,51 @@ local function debug_test_file(module_config, _)
     }
 end
 
+local function get_current_test_filter()
+    local test_start_line = vim.fn.search( "^test", 'bWn' );
+    if test_start_line ~= 0 then
+        local line_contents = vim.fn.getline( test_start_line )
+        local test_filter = string.gsub( line_contents, "^test +\"(.+)\".+$", "%1" )
+        return test_filter
+    else
+        return nil
+    end
+end
+
+local function run_current_test( module_config, _ )
+    local currentSource = vim.fn.expand( '%' )
+    local test_filter = get_current_test_filter()
+    if test_filter ~= nil then
+        return {
+            cmd = 'zig',
+            args = { 'test', '-O' .. module_config.build_type, currentSource, "--test-filter", test_filter },
+        }
+    else
+        return {
+            cmd = 'zig',
+            args = { 'test', '-O' .. module_config.build_type, currentSource },
+        }
+    end
+end
+
+local function build_current_test(module_config, _)
+    local currentSource = vim.fn.expand('%')
+    local srcFilename = vim.fn.fnamemodify(currentSource, ':t:r')
+    local test_filter = get_current_test_filter()
+    if test_filter == nil then
+        return {
+            cmd = 'zig',
+            args = { 'test', currentSource, '-femit-bin=.zig-cache/test-' .. srcFilename, '--test-no-exec', '-O' .. module_config.build_type },
+        }
+    else 
+        return {
+            cmd = 'zig',
+            args = { 'test', currentSource, '-femit-bin=.zig-cache/test-' .. srcFilename, '--test-no-exec', '-O' .. module_config.build_type, "--test-filter", test_filter },
+        }
+
+    end
+end
+
 return {
     params = {
         'dap_name',
@@ -110,5 +155,7 @@ return {
         debug_file = { build_file_as_exe, debug_file },
         test_file = test_file,
         debug_test_file = { build_test_file, debug_test_file },
+        run_current_test = run_current_test,
+        debug_current_test = { build_current_test, debug_test_file },
     }
 }

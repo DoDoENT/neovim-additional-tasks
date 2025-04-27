@@ -401,4 +401,6 @@ Zig task module will generate following tasks:
 - `run_file` - invokes `zig run` for currently open buffer. Obeys `build_type`
 - `debug_file` - starts debugger for currently open buffer (effectively as `run_file`, but under debugger)
 - `test_file` - invokes `zig test` for currently open buffer. Obeys `build_type`.
-- `debug_test_file` - starts debugger for tests in currently open buffer (effectively as `test_file`, but under debugger)
+- `debug_test_file` -same as `test_file`, but under debugger
+- `run_current_test` - invokes `zig test` for currently open buffer with test filter set to a first test above current cursor location. If test filter cannot be calculated, all tests in current file are run (behavior same as `test_file`).
+- `debug_current_test` - same as `run_current_test`, but under debugger
