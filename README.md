@@ -7,7 +7,6 @@ This plugin contains dditional tasks for [Shatur/neovim-tasks](https://github.co
 - `cmake_kits` for advanced management of CMake-based projects, which has a lot more features than the `cmake` task provided in the original [Shatur/neovim-tasks](https://github.com/Shatur/neovim-tasks) plugin, such as support for build kits, customization of build types, integration with ctest, automatic reconfiguration of `clangd` LSP arguments, ...
     - cmake debugging is supported with [nvim-dap](https://github.com/mfussenegger/nvim-dap) - you need CMake 3.27 or newer for that
     - if `CMakePresets.json` or `CMakeUserPresets.json` file is found in the project root, plugin also supports using cmake presets - you need CMake 3.23 or newer for that
-- `zig` for quickly building zig projects
 
 Additinally, plugin also provides a lot of utility functions for CMake, available [here](https://github.com/DoDoENT/neovim-additional-tasks/blob/master/lua/tasks/cmake_kits_utils.lua), which can be used to expose some CMake state, which is useful for configuring other plugins, for example CMake status bar with [nvim-lualine/lualine.nvim](https://github.com/nvim-lualine/lualine.nvim).
 
@@ -373,34 +372,3 @@ vim.keymap.set( "n", "<leader>nr", [[:Task start npm run rollup<cr>]] )
 vim.keymap.set( "n", "<leader>ns", [[:Task start npm run clean<cr>]] )
 vim.keymap.set( "n", "<leader>ns", [[:Task start npm run start<cr>]] )
 ```
-
-## Zig
-
-Use the following snippet to configure `neovim-tasks` plugin as, described in [plugin documentation](https://github.com/Shatur/neovim-tasks#configuration):
-
-```lua
-require('tasks').setup({
-    default_params = { -- Default module parameters with which `.tasks.json` will be created.
-        zig = {
-            dap_name = 'codelldb',
-            build_type = 'Debug',
-            build_step = 'install',
-        },
-    }
-})
-```
-
-### Tasks
-
-Zig task module will generate following tasks:
-
-- `build` - invokes `zig build` with step configured as `build_step` with build type configured as `build_type`
-- `clean` - deletes the `zig-out` folder (works only on Unix shells at the moment)
-- `clean_cache` - deletes the `.zig-cache` folder (works only on Unix shells at the moment)
-- `clean_all` - invokes forst `clean`, then `clean_cache`
-- `run_file` - invokes `zig run` for currently open buffer. Obeys `build_type`
-- `debug_file` - starts debugger for currently open buffer (effectively as `run_file`, but under debugger)
-- `test_file` - invokes `zig test` for currently open buffer. Obeys `build_type`.
-- `debug_test_file` -same as `test_file`, but under debugger
-- `run_current_test` - invokes `zig test` for currently open buffer with test filter set to a first test above current cursor location. If test filter cannot be calculated, all tests in current file are run (behavior same as `test_file`).
-- `debug_current_test` - same as `run_current_test`, but under debugger
