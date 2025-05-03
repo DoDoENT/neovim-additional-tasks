@@ -1,7 +1,10 @@
 neovim-additional-tasks
 =========================
 
-This plugin contains dditional tasks for [Shatur/neovim-tasks](https://github.com/Shatur/neovim-tasks). Following additional tasks are implemented:
+> [!WARNING]
+> This plugin is up to deprecation. All modules available here will be integrated directly into [Shatur/neovim-tasks](https://github.com/Shatur/neovim-tasks) plugin, thus making this plugin no longer needed.
+
+This plugin contained additional tasks for [Shatur/neovim-tasks](https://github.com/Shatur/neovim-tasks). Following additional tasks are implemented:
 
 - `npm` for managing NPM projects
 - `cmake_kits` for advanced management of CMake-based projects, which has a lot more features than the `cmake` task provided in the original [Shatur/neovim-tasks](https://github.com/Shatur/neovim-tasks) plugin, such as support for build kits, customization of build types, integration with ctest, automatic reconfiguration of `clangd` LSP arguments, ...
