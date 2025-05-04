@@ -6,7 +6,6 @@ neovim-additional-tasks
 
 This plugin contained additional tasks for [Shatur/neovim-tasks](https://github.com/Shatur/neovim-tasks). Following additional tasks are implemented:
 
-- `npm` for managing NPM projects
 - `cmake_kits` for advanced management of CMake-based projects, which has a lot more features than the `cmake` task provided in the original [Shatur/neovim-tasks](https://github.com/Shatur/neovim-tasks) plugin, such as support for build kits, customization of build types, integration with ctest, automatic reconfiguration of `clangd` LSP arguments, ...
     - cmake debugging is supported with [nvim-dap](https://github.com/mfussenegger/nvim-dap) - you need CMake 3.27 or newer for that
     - if `CMakePresets.json` or `CMakeUserPresets.json` file is found in the project root, plugin also supports using cmake presets - you need CMake 3.23 or newer for that
@@ -331,47 +330,4 @@ lualine.setup({
         lualine_x = { 'encoding', 'fileformat', 'filetype', cmakeStatus }
     }
 })
-```
-
-
-## NPM
-
-Use the following snippet to configure `neovim-tasks` plugin as, described in [plugin documentation](https://github.com/Shatur/neovim-tasks#configuration):
-
-```lua
-require('tasks').setup({
-    default_params = {
-        npm = {
-            working_directory = vim.loop.cwd(), -- working directory in which NPM will be invoked
-            npm_command = 'npm'  -- npm command which will be invoked. If using yarn or pnpm, change here.
-        },
-    }
-})
-```
-
-NPM task module will create `install` and `run` task subcommands.
-
-### NPM Example
-
-For example, imagine that your `package.json` contains lines like these:
-
-```json
-{
-    "scripts": {
-        "clean": "rimraf build dist",
-        "lint": "eslint --ext ts -c .eslintrc.json src",
-        "start": "NODE_PATH=$(pwd)/node_modules node $(pwd)/../core/scripts/https-serve.js dist",
-        "rollup": "rollup -c rollup.config.js && cd dist && ln -sf ../test-data",
-    }
-}
-```
-
-You can map then those commands with code like this:
-
-```lua
-vim.keymap.set( "n", "<leader>ni", [[:Task start npm install<cr>]] )
-vim.keymap.set( "n", "<leader>nl", [[:Task start npm run lint<cr>]] )
-vim.keymap.set( "n", "<leader>nr", [[:Task start npm run rollup<cr>]] )
-vim.keymap.set( "n", "<leader>ns", [[:Task start npm run clean<cr>]] )
-vim.keymap.set( "n", "<leader>ns", [[:Task start npm run start<cr>]] )
 ```
